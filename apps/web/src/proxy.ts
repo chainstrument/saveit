@@ -7,7 +7,7 @@ function isExtensionOrigin(origin: string | null): boolean {
   return origin.startsWith("chrome-extension://") || origin.startsWith("moz-extension://");
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const origin = req.headers.get("origin");
 
