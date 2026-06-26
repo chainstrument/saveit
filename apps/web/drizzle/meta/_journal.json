@@ -8,6 +8,13 @@
       "when": 1782483323044,
       "tag": "0000_shocking_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782483400000,
+      "tag": "0001_add_auth_columns",
+      "breakpoints": true
     }
   ]
 }
