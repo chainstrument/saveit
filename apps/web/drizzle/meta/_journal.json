@@ -15,6 +15,13 @@
       "when": 1782483400000,
       "tag": "0001_add_auth_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782483500000,
+      "tag": "0002_add_screenshot_url",
+      "breakpoints": true
     }
   ]
 }

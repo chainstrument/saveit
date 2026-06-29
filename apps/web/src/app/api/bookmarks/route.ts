@@ -5,6 +5,7 @@ import { CreateBookmarkSchema } from "@saveit/shared";
 import { eq, and, desc } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getSession } from "@/lib/session";
+import { uploadScreenshot } from "@/lib/r2";
 
 async function getSessionFromRequest() {
   return getSession(await headers());
@@ -41,8 +42,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { url, title, note, tagNames } = parsed.data;
+  const { url, title, note, tagNames, screenshot } = parsed.data;
   const bookmarkId = crypto.randomUUID();
+
+  let screenshotUrl: string | null = null;
+  if (screenshot && process.env.R2_ACCESS_KEY_ID) {
+    try {
+      screenshotUrl = await uploadScreenshot(bookmarkId, screenshot);
+    } catch {
+      // screenshot non critique — on continue sans
+    }
+  }
 
   await db.insert(bookmarks).values({
     id: bookmarkId,
@@ -50,6 +60,7 @@ export async function POST(req: NextRequest) {
     url,
     title,
     note: note ?? null,
+    screenshotUrl,
   });
 
   if (tagNames.length > 0) {

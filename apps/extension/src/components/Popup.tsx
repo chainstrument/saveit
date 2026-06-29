@@ -5,14 +5,41 @@ const API_URL = import.meta.env.WXT_API_URL ?? "http://localhost:3000";
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 type SaveState = "idle" | "saving" | "success" | "error";
 
+async function captureScreenshot(): Promise<string | null> {
+  try {
+    const dataUrl = await new Promise<string | null>((resolve) => {
+      chrome.tabs.captureVisibleTab({ format: "jpeg", quality: 70 }, (result) => {
+        if (chrome.runtime.lastError || !result) resolve(null);
+        else resolve(result);
+      });
+    });
+    if (!dataUrl) return null;
+    return await new Promise<string | null>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 400;
+        canvas.height = 225;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, 400, 225);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  } catch {
+    return null;
+  }
+}
+
 function getToken(): Promise<string | null> {
-  return new Promise((resolve) => chrome.storage.local.get(["token"], (r) => resolve(r.token ?? null)));
+  return new Promise<string | null>((resolve) => chrome.storage.local.get(["token"], (r) => resolve((r.token as string) ?? null)));
 }
 function saveToken(token: string): Promise<void> {
-  return new Promise((resolve) => chrome.storage.local.set({ token }, resolve));
+  return new Promise<void>((resolve) => chrome.storage.local.set({ token }, resolve));
 }
 function clearToken(): Promise<void> {
-  return new Promise((resolve) => chrome.storage.local.remove(["token"], resolve));
+  return new Promise<void>((resolve) => chrome.storage.local.remove(["token"], resolve));
 }
 
 export function Popup() {
@@ -81,10 +108,11 @@ export function Popup() {
     setErrorMsg("");
     try {
       const tagNames = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      const screenshot = await captureScreenshot();
       const res = await fetch(`${API_URL}/api/bookmarks`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ url, title, note: note || undefined, tagNames }),
+        body: JSON.stringify({ url, title, note: note || undefined, tagNames, screenshot: screenshot ?? undefined }),
       });
       if (res.status === 401) { await clearToken(); setAuth("unauthenticated"); return; }
       if (!res.ok) throw new Error(`Erreur ${res.status}`);

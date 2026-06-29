@@ -59,6 +59,7 @@ export const bookmarks = pgTable("bookmarks", {
   url: text("url").notNull(),
   title: text("title").notNull(),
   note: text("note"),
+  screenshotUrl: text("screenshot_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

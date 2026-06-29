@@ -24,7 +24,16 @@ export function BookmarkCard({ bookmark, onDelete, onUpdate }: Props) {
 
   return (
     <>
-      <Card className="group hover:shadow-md transition-shadow">
+      <Card className="group hover:shadow-md transition-shadow overflow-hidden">
+        {bookmark.screenshotUrl && (
+          <a href={bookmark.url} target="_blank" rel="noopener noreferrer">
+            <img
+              src={bookmark.screenshotUrl}
+              alt=""
+              className="w-full h-32 object-cover object-top"
+            />
+          </a>
+        )}
         <CardContent className="pt-4">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">

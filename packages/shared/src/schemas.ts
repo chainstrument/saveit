@@ -13,6 +13,7 @@ export const BookmarkSchema = z.object({
   url: z.string().url(),
   title: z.string().min(1).max(500),
   note: z.string().max(2000).nullable(),
+  screenshotUrl: z.string().url().nullable().optional(),
   tags: z.array(TagSchema),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
@@ -23,6 +24,7 @@ export const CreateBookmarkSchema = z.object({
   title: z.string().min(1).max(500),
   note: z.string().max(2000).optional(),
   tagNames: z.array(z.string().min(1).max(50)).max(20).default([]),
+  screenshot: z.string().optional(),
 });
 
 export const UpdateBookmarkSchema = z.object({
