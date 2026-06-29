@@ -7,12 +7,9 @@ type SaveState = "idle" | "saving" | "success" | "error";
 
 async function captureScreenshot(): Promise<string | null> {
   try {
-    const dataUrl = await new Promise<string | null>((resolve) => {
-      chrome.tabs.captureVisibleTab({ format: "jpeg", quality: 70 }, (result) => {
-        if (chrome.runtime.lastError || !result) resolve(null);
-        else resolve(result);
-      });
-    });
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.windowId) return null;
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: 70 });
     if (!dataUrl) return null;
     return await new Promise<string | null>((resolve) => {
       const img = new Image();
@@ -80,7 +77,7 @@ export function Popup() {
     });
   }, []);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.SyntheticEvent) {
     e.preventDefault();
     setLoggingIn(true);
     setLoginError("");
