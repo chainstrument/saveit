@@ -46,11 +46,15 @@ export async function POST(req: NextRequest) {
   const bookmarkId = crypto.randomUUID();
 
   let screenshotUrl: string | null = null;
-  if (screenshot && process.env.R2_ACCESS_KEY_ID) {
-    try {
-      screenshotUrl = await uploadScreenshot(bookmarkId, screenshot);
-    } catch {
-      // screenshot non critique — on continue sans
+  if (screenshot) {
+    if (process.env.R2_ACCESS_KEY_ID) {
+      try {
+        screenshotUrl = await uploadScreenshot(bookmarkId, screenshot);
+      } catch {
+        screenshotUrl = screenshot; // fallback base64
+      }
+    } else {
+      screenshotUrl = screenshot; // stockage base64 direct en DB
     }
   }
 

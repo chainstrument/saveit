@@ -13,7 +13,7 @@ export const BookmarkSchema = z.object({
   url: z.string().url(),
   title: z.string().min(1).max(500),
   note: z.string().max(2000).nullable(),
-  screenshotUrl: z.string().url().nullable().optional(),
+  screenshotUrl: z.string().nullable().optional(),
   tags: z.array(TagSchema),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
