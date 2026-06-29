@@ -1,9 +1,14 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.RESEND_FROM ?? "SaveIt <onboarding@resend.dev>";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("[email] RESEND_API_KEY non défini — email de reset non envoyé");
+    return;
+  }
+  const resend = new Resend(apiKey);
   await resend.emails.send({
     from: FROM,
     to,
