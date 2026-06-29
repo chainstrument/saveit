@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { bookmarks, tags, bookmarkTags } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { UpdateBookmarkSchema } from "@saveit/shared";
 import { eq, and } from "drizzle-orm";
 import { headers } from "next/headers";
+import { getSession } from "@/lib/session";
 
-async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
+async function getSessionFromRequest() {
+  return getSession(await headers());
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
+  const session = await getSessionFromRequest();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
@@ -56,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
+  const session = await getSessionFromRequest();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;

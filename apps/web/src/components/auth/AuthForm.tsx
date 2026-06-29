@@ -89,7 +89,7 @@ export function AuthForm({ mode }: Props) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              minLength={8}
+              minLength={mode === "register" ? 8 : undefined}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </div>

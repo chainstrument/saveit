@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { bookmarks, tags, bookmarkTags } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { CreateBookmarkSchema } from "@saveit/shared";
 import { eq, and, desc } from "drizzle-orm";
 import { headers } from "next/headers";
+import { getSession } from "@/lib/session";
 
-async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
+async function getSessionFromRequest() {
+  return getSession(await headers());
 }
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getSessionFromRequest();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const rows = await db.query.bookmarks.findMany({
@@ -32,7 +32,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
+  const session = await getSessionFromRequest();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();

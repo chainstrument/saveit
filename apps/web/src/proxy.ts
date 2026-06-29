@@ -19,7 +19,7 @@ export function proxy(req: NextRequest) {
         "Access-Control-Allow-Origin": origin!,
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
       },
     });
   }
@@ -37,6 +37,16 @@ export function proxy(req: NextRequest) {
   const sessionToken =
     req.cookies.get("better-auth.session_token")?.value ??
     req.cookies.get("__Secure-better-auth.session_token")?.value;
+
+  const bearerToken = req.headers.get("authorization")?.replace("Bearer ", "");
+
+  // Requêtes API de l'extension avec bearer token — laisser passer, la route valide le token
+  if (pathname.startsWith("/api/") && isExtensionOrigin(origin) && bearerToken) {
+    const res = NextResponse.next();
+    res.headers.set("Access-Control-Allow-Origin", origin!);
+    res.headers.set("Access-Control-Allow-Credentials", "true");
+    return res;
+  }
 
   // Les requêtes API de l'extension sans session reçoivent un 401, pas une redirection
   if (!sessionToken && pathname.startsWith("/api/") && isExtensionOrigin(origin)) {

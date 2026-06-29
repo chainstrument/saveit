@@ -5,14 +5,31 @@ const API_URL = import.meta.env.WXT_API_URL ?? "http://localhost:3000";
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 type SaveState = "idle" | "saving" | "success" | "error";
 
+function getToken(): Promise<string | null> {
+  return new Promise((resolve) => chrome.storage.local.get(["token"], (r) => resolve(r.token ?? null)));
+}
+function saveToken(token: string): Promise<void> {
+  return new Promise((resolve) => chrome.storage.local.set({ token }, resolve));
+}
+function clearToken(): Promise<void> {
+  return new Promise((resolve) => chrome.storage.local.remove(["token"], resolve));
+}
+
 export function Popup() {
   const [auth, setAuth] = useState<AuthState>("loading");
+  const [token, setToken] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [tags, setTags] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Login form
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -21,14 +38,42 @@ export function Popup() {
       if (tab?.title) setTitle(tab.title);
     });
 
-    fetch(`${API_URL}/api/auth/get-session`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => setAuth(data?.user ? "authenticated" : "unauthenticated"))
-      .catch(() => setAuth("unauthenticated"));
+    getToken().then(async (stored) => {
+      if (!stored) { setAuth("unauthenticated"); return; }
+      try {
+        const res = await fetch(`${API_URL}/api/auth/get-session`, {
+          headers: { Authorization: `Bearer ${stored}` },
+        });
+        const data = await res.json();
+        if (data?.user) { setToken(stored); setAuth("authenticated"); }
+        else { await clearToken(); setAuth("unauthenticated"); }
+      } catch {
+        setAuth("unauthenticated");
+      }
+    });
   }, []);
 
-  function openWebapp() {
-    chrome.tabs.create({ url: `${API_URL}/login` });
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoggingIn(true);
+    setLoginError("");
+    try {
+      const res = await fetch(`${API_URL}/api/auth/sign-in/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Identifiants incorrects");
+      if (!data.token) throw new Error("Token manquant dans la réponse");
+      await saveToken(data.token);
+      setToken(data.token);
+      setAuth("authenticated");
+    } catch (e) {
+      setLoginError(e instanceof Error ? e.message : "Erreur de connexion");
+    } finally {
+      setLoggingIn(false);
+    }
   }
 
   async function handleSave() {
@@ -38,11 +83,10 @@ export function Popup() {
       const tagNames = tags.split(",").map((t) => t.trim()).filter(Boolean);
       const res = await fetch(`${API_URL}/api/bookmarks`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ url, title, note: note || undefined, tagNames }),
       });
-      if (res.status === 401) { setAuth("unauthenticated"); return; }
+      if (res.status === 401) { await clearToken(); setAuth("unauthenticated"); return; }
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       setSaveState("success");
     } catch (e) {
@@ -58,10 +102,35 @@ export function Popup() {
   if (auth === "unauthenticated") {
     return (
       <Shell>
-        <p style={styles.muted}>Vous n&apos;êtes pas connecté.</p>
-        <button onClick={openWebapp} style={styles.btn}>
-          Se connecter sur SaveIt
-        </button>
+        <h2 style={styles.heading}>SaveIt</h2>
+        <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Field label="Email">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              style={styles.input}
+              placeholder="vous@exemple.com"
+            />
+          </Field>
+          <Field label="Mot de passe">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              style={styles.input}
+              placeholder="••••••••"
+            />
+          </Field>
+          {loginError && <p style={{ color: "#dc2626", fontSize: 12, margin: 0 }}>{loginError}</p>}
+          <button type="submit" disabled={loggingIn} style={{ ...styles.btn, marginTop: 4 }}>
+            {loggingIn ? "Connexion..." : "Se connecter"}
+          </button>
+        </form>
       </Shell>
     );
   }

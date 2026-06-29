@@ -1,3 +1,5 @@
+/// <reference types="@types/chrome" />
+
 interface ImportMetaEnv {
   readonly WXT_API_URL: string;
 }
