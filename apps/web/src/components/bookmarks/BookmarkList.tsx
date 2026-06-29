@@ -10,7 +10,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import type { Tag } from "@saveit/shared";
 
 export function BookmarkList() {
-  const { bookmarks, loading, error, deleteBookmark, updateBookmark } = useBookmarks();
+  const { bookmarks, loading, loadingMore, error, total, hasMore, loadMore, deleteBookmark, updateBookmark } = useBookmarks();
   const [search, setSearch] = useState("");
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
 
@@ -113,7 +113,18 @@ export function BookmarkList() {
         <p className="text-xs text-muted-foreground text-right">
           {filtered.length} marque-page{filtered.length > 1 ? "s" : ""}
           {selectedTags.size > 0 || search ? ` (filtré${filtered.length > 1 ? "s" : ""})` : ""}
+          {total > bookmarks.length ? ` · ${bookmarks.length}/${total} chargés` : ""}
         </p>
+      )}
+
+      {hasMore && !search && selectedTags.size === 0 && (
+        <button
+          onClick={loadMore}
+          disabled={loadingMore}
+          className="mx-auto text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          {loadingMore ? "Chargement..." : "Charger plus"}
+        </button>
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { bookmarks, tags, bookmarkTags } from "@/db/schema";
 import { CreateBookmarkSchema } from "@saveit/shared";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import { headers } from "next/headers";
 import { getSession } from "@/lib/session";
 import { uploadScreenshot } from "@/lib/r2";
@@ -15,15 +15,26 @@ export async function GET(req: NextRequest) {
   const session = await getSessionFromRequest();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const urlFilter = new URL(req.url).searchParams.get("url");
+  const params = new URL(req.url).searchParams;
+  const urlFilter = params.get("url");
+  const limit = Math.min(parseInt(params.get("limit") ?? "20"), 100);
+  const page = Math.max(parseInt(params.get("page") ?? "1"), 1);
+  const offset = (page - 1) * limit;
 
-  const rows = await db.query.bookmarks.findMany({
-    where: urlFilter
-      ? and(eq(bookmarks.userId, session.user.id), eq(bookmarks.url, urlFilter))
-      : eq(bookmarks.userId, session.user.id),
-    with: { bookmarkTags: { with: { tag: true } } },
-    orderBy: [desc(bookmarks.createdAt)],
-  });
+  const where = urlFilter
+    ? and(eq(bookmarks.userId, session.user.id), eq(bookmarks.url, urlFilter))
+    : eq(bookmarks.userId, session.user.id);
+
+  const [rows, [{ total }]] = await Promise.all([
+    db.query.bookmarks.findMany({
+      where,
+      with: { bookmarkTags: { with: { tag: true } } },
+      orderBy: [desc(bookmarks.createdAt)],
+      limit,
+      offset,
+    }),
+    db.select({ total: count() }).from(bookmarks).where(where),
+  ]);
 
   const result = rows.map((b) => ({
     ...b,
@@ -31,7 +42,10 @@ export async function GET(req: NextRequest) {
     bookmarkTags: undefined,
   }));
 
-  return NextResponse.json(result);
+  return NextResponse.json({
+    data: result,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  });
 }
 
 export async function POST(req: NextRequest) {
