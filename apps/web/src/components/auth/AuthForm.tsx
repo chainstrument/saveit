@@ -19,7 +19,7 @@ export function AuthForm({ mode }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -105,6 +105,12 @@ export function AuthForm({ mode }: Props) {
               ? "Se connecter"
               : "Créer mon compte"}
           </Button>
+
+          {mode === "login" && (
+            <a href="/forgot-password" className="text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+              Mot de passe oublié ?
+            </a>
+          )}
         </form>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
