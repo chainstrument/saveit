@@ -48,6 +48,8 @@ export function Popup() {
   const [tags, setTags] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [alreadySaved, setAlreadySaved] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
 
   // Login form
   const [email, setEmail] = useState("");
@@ -67,11 +69,31 @@ export function Popup() {
       try {
         const res = await fetch(`${API_URL}/api/auth/get-session`, {
           headers: { Authorization: `Bearer ${stored}` },
+          signal: AbortSignal.timeout(5000),
         });
         const data = await res.json();
-        if (data?.user) { setToken(stored); setAuth("authenticated"); }
-        else { await clearToken(); setAuth("unauthenticated"); }
-      } catch {
+        if (data?.user) {
+          setToken(stored);
+          setAuth("authenticated");
+          // Vérifier si la page courante est déjà sauvegardée
+          chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+            const currentUrl = tabs[0]?.url;
+            if (!currentUrl) return;
+            try {
+              const check = await fetch(`${API_URL}/api/bookmarks?url=${encodeURIComponent(currentUrl)}`, {
+                headers: { Authorization: `Bearer ${stored}` },
+                signal: AbortSignal.timeout(5000),
+              });
+              const existing = await check.json();
+              if (Array.isArray(existing) && existing.length > 0) setAlreadySaved(true);
+            } catch { /* non bloquant */ }
+          });
+        } else {
+          await clearToken();
+          setAuth("unauthenticated");
+        }
+      } catch (e) {
+        if (e instanceof TypeError) setNetworkError(true);
         setAuth("unauthenticated");
       }
     });
@@ -86,6 +108,7 @@ export function Popup() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        signal: AbortSignal.timeout(8000),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Identifiants incorrects");
@@ -94,7 +117,8 @@ export function Popup() {
       setToken(data.token);
       setAuth("authenticated");
     } catch (e) {
-      setLoginError(e instanceof Error ? e.message : "Erreur de connexion");
+      if (e instanceof TypeError) setLoginError("Serveur inaccessible. Vérifiez que la webapp tourne.");
+      else setLoginError(e instanceof Error ? e.message : "Erreur de connexion");
     } finally {
       setLoggingIn(false);
     }
@@ -114,14 +138,25 @@ export function Popup() {
       if (res.status === 401) { await clearToken(); setAuth("unauthenticated"); return; }
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       setSaveState("success");
+      setAlreadySaved(true);
     } catch (e) {
-      setErrorMsg(e instanceof Error ? e.message : "Erreur inconnue");
+      if (e instanceof TypeError) setErrorMsg("Serveur inaccessible. Vérifiez que la webapp tourne.");
+      else setErrorMsg(e instanceof Error ? e.message : "Erreur inconnue");
       setSaveState("error");
     }
   }
 
   if (auth === "loading") {
     return <Shell><p style={styles.muted}>Chargement...</p></Shell>;
+  }
+
+  if (networkError) {
+    return (
+      <Shell>
+        <p style={{ ...styles.muted, color: "#dc2626" }}>Serveur inaccessible.</p>
+        <p style={{ fontSize: 12, color: "#888", margin: 0 }}>Vérifiez que la webapp tourne sur {API_URL}</p>
+      </Shell>
+    );
   }
 
   if (auth === "unauthenticated") {
@@ -175,7 +210,14 @@ export function Popup() {
 
   return (
     <Shell>
-      <h2 style={styles.heading}>SaveIt</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h2 style={styles.heading}>SaveIt</h2>
+        {alreadySaved && (
+          <span style={{ fontSize: 11, background: "#dcfce7", color: "#16a34a", padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>
+            Déjà sauvegardé
+          </span>
+        )}
+      </div>
 
       <Field label="URL">
         <input value={url} onChange={(e) => setUrl(e.target.value)} style={styles.input} />

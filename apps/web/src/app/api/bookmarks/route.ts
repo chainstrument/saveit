@@ -11,15 +11,17 @@ async function getSessionFromRequest() {
   return getSession(await headers());
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getSessionFromRequest();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const urlFilter = new URL(req.url).searchParams.get("url");
+
   const rows = await db.query.bookmarks.findMany({
-    where: eq(bookmarks.userId, session.user.id),
-    with: {
-      bookmarkTags: { with: { tag: true } },
-    },
+    where: urlFilter
+      ? and(eq(bookmarks.userId, session.user.id), eq(bookmarks.url, urlFilter))
+      : eq(bookmarks.userId, session.user.id),
+    with: { bookmarkTags: { with: { tag: true } } },
     orderBy: [desc(bookmarks.createdAt)],
   });
 
